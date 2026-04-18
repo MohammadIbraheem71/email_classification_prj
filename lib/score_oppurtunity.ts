@@ -28,7 +28,7 @@ export function scoreOpportunity(op: Opportunity, profile: StudentProfile) {
     } else if (daysLeft < 7) {
       score += 30;
       reasons.push("Deadline soon");
-    } else if (daysLeft < 14) {
+    } else if (daysLeft < 30) {
       score += 10;
       reasons.push("Upcoming deadline");
     }
