@@ -1,7 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI("YOUR_API_KEY");
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+import { getOpenAIClient, getOpenAIModel } from "./openai_client";
 
 export async function classifyEmail(email: string) {
   const prompt = `
@@ -17,10 +14,21 @@ Email:
 ${email}
 `;
 
-  const res = await model.generateContent(prompt);
-  let text = res.response.text();
+  const client = getOpenAIClient();
+  const response = await client.chat.completions.create({
+    model: getOpenAIModel(),
+    temperature: 0,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "system",
+        content: "Return strict JSON only.",
+      },
+      { role: "user", content: prompt },
+    ],
+  });
 
-  text = text.replace(/```json|```/g, "").trim();
+  const text = response.choices[0]?.message?.content?.trim() ?? "";
 
   try {
     return JSON.parse(text);
