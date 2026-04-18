@@ -49,10 +49,19 @@ export const EmailClient = () => {
     setIsComposeOpen(false);
   };
 
+  const moveEmailToTrash = (emailId: string) => {
+    setEmails((previousEmails) =>
+      previousEmails.map((email) =>
+        email.id === emailId ? { ...email, category: "trash", isUnread: false } : email,
+      ),
+    );
+    setSelectedEmailId(null);
+  };
+
   return (
     <div className="relative h-screen overflow-hidden rounded-[22px] bg-[#1b1c1d]">
       {isComposeOpen ? <ComposeWindow onClose={() => setIsComposeOpen(false)} onSend={handleSend} /> : null}
-      {selectedEmail ? <EmailDetail email={selectedEmail} onBack={() => setSelectedEmailId(null)} /> : null}
+      {selectedEmail ? <EmailDetail email={selectedEmail} onBack={() => setSelectedEmailId(null)} onDelete={() => moveEmailToTrash(selectedEmail.id)} /> : null}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
@@ -85,6 +94,7 @@ export const EmailClient = () => {
         {filteredEmails.map((email) => (
           <EmailRow
             key={email.id}
+            id={email.id}
             sender={email.sender}
             subject={email.subject}
             preview={email.preview}
@@ -93,6 +103,8 @@ export const EmailClient = () => {
             avatarColor={email.avatarColor}
             isUnread={email.isUnread}
             onClick={() => setSelectedEmailId(email.id)}
+            onDelete={moveEmailToTrash}
+            showDelete={selectedCategory !== "trash"}
           />
         ))}
         <p className="pt-4 text-center text-[14px] text-[#989ca4]">That&apos;s all</p>
