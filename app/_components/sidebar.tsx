@@ -8,6 +8,7 @@ interface SidebarProps {
   onCategorySelect: (category: string) => void;
   selectedCategory: string;
   inboxCount: number;
+  userEmail: string;
 }
 
 const categories = [{ id: "inbox", name: "Inbox", icon: "p18ed3c80" }];
@@ -19,6 +20,7 @@ export const Sidebar = ({
   onCategorySelect,
   selectedCategory,
   inboxCount,
+  userEmail,
 }: SidebarProps) => {
   const allCategories = [...categories, ...secondaryCategories].map((category) =>
     category.id === "inbox" ? { ...category, count: inboxCount } : category,
@@ -63,7 +65,7 @@ export const Sidebar = ({
           </div>
           <div>
             <p className="text-[14px] text-[#d1d3d6]">University Student</p>
-            <p className="text-[12px] text-[#989ca4]">student@university.edu</p>
+            <p className="text-[12px] text-[#989ca4]">{userEmail}</p>
           </div>
         </button>
       </div>

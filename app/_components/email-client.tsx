@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import svgPaths from "@/imports/Shell/svg-1d9ns9vats";
-import { mockEmails } from "@/app/_components/mock-emails";
 import { Sidebar } from "@/app/_components/sidebar";
 import { EmailRow } from "@/app/_components/email-row";
 import { ComposeWindow } from "@/app/_components/compose-window";
@@ -15,6 +14,7 @@ import type {
   Email,
   EmailAnalysisCache,
   EmailAnalysisState,
+  StudentProfile,
 } from "@/src/types/types";
 
 const mailboxLabel: Record<string, string> = {
@@ -23,8 +23,19 @@ const mailboxLabel: Record<string, string> = {
   profile: "Profile",
 };
 
-export const EmailClient = () => {
-  const [emails, setEmails] = useState<Email[]>(mockEmails);
+interface EmailClientProps {
+  initialEmails: Email[];
+  initialProfile: StudentProfile;
+  userEmail: string;
+}
+
+export const EmailClient = ({
+  initialEmails,
+  initialProfile,
+  userEmail,
+}: EmailClientProps) => {
+  const [emails, setEmails] = useState<Email[]>(initialEmails);
+  const [profile, setProfile] = useState<StudentProfile>(initialProfile);
   const [selectedCategory, setSelectedCategory] = useState("inbox");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
@@ -67,26 +78,37 @@ export const EmailClient = () => {
     [emails, selectedEmailIds],
   );
 
-  const handleSend = (composeEmail: ComposeEmailInput) => {
-    const bulkBodies = composeEmail.bodies.length > 0 ? composeEmail.bodies : [""];
-    const newEmails: Email[] = bulkBodies.map((body, index) => ({
-      id: `${Date.now()}-${index}`,
-      sender: "You",
-      subject: composeEmail.subject || "(No Subject)",
-      preview: body || "No body content",
-      date: "Just now",
-      initial: "Y",
-      avatarColor: "#777bfb",
-      isUnread: false,
-      category: "inbox",
-    }));
+  const handleSend = async (composeEmail: ComposeEmailInput) => {
+    try {
+      const response = await fetch("/api/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(composeEmail),
+      });
 
-    setEmails((previousEmails) => [...newEmails, ...previousEmails]);
-    setSelectedCategory("inbox");
-    setIsComposeOpen(false);
+      const data = (await response.json()) as { emails?: Email[]; error?: string };
+      if (!response.ok) {
+        return;
+      }
+
+      const newEmails = data.emails ?? [];
+      setEmails((previousEmails) => [...newEmails, ...previousEmails]);
+      setSelectedCategory("inbox");
+      setIsComposeOpen(false);
+    } catch {
+      // Keep compose open so the user can retry.
+    }
   };
 
-  const moveEmailToTrash = (emailId: string) => {
+  const moveEmailToTrash = async (emailId: string) => {
+    const response = await fetch(`/api/emails/${emailId}/trash`, {
+      method: "PATCH",
+    });
+
+    if (!response.ok) {
+      return;
+    }
+
     setEmails((previousEmails) =>
       previousEmails.map((email) =>
         email.id === emailId ? { ...email, category: "trash", isUnread: false } : email,
@@ -110,7 +132,7 @@ export const EmailClient = () => {
       const response = await fetch("/api/email-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emailBody: email.preview }),
+        body: JSON.stringify({ emailBody: email.preview, emailId: email.id }),
       });
       const data = (await response.json()) as { payload?: unknown; error?: string };
 
@@ -142,15 +164,30 @@ export const EmailClient = () => {
     setSelectedEmailId(email.id);
     void analyzeEmail(email);
   };
+  const saveProfile = async (nextProfile: StudentProfile) => {
+    const response = await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile: nextProfile }),
+    });
+
+    if (!response.ok) return;
+    setProfile(nextProfile);
+  };
 
   return (
     <div className="relative h-screen overflow-hidden rounded-[22px] bg-[#1b1c1d]">
-      {isComposeOpen ? <ComposeWindow onClose={() => setIsComposeOpen(false)} onSend={handleSend} /> : null}
+      {isComposeOpen ? (
+        <ComposeWindow
+          onClose={() => setIsComposeOpen(false)}
+          onSend={(email) => void handleSend(email)}
+        />
+      ) : null}
       {selectedEmail ? (
         <EmailDetail
           email={selectedEmail}
           onBack={() => setSelectedEmailId(null)}
-          onDelete={() => moveEmailToTrash(selectedEmail.id)}
+          onDelete={() => void moveEmailToTrash(selectedEmail.id)}
           analysisState={selectedEmailAnalysis}
           onRetryAnalysis={() => void analyzeEmail(selectedEmail, true)}
         />
@@ -165,6 +202,7 @@ export const EmailClient = () => {
         }}
         selectedCategory={selectedCategory}
         inboxCount={inboxCount}
+        userEmail={userEmail}
       />
 
       <header className="absolute inset-x-0 top-0 z-10 flex items-center gap-[22px] px-[22px] py-[12px]">
@@ -192,7 +230,11 @@ export const EmailClient = () => {
 
       <main className="hide-scrollbar absolute inset-x-0 bottom-0 top-[56px] overflow-auto p-[33px]">
         {selectedCategory === "profile" ? (
-          <UserProfilePage />
+          <UserProfilePage
+            onSaveProfile={saveProfile}
+            profile={profile}
+            userEmail={userEmail}
+          />
         ) : (
           <>
             {filteredEmails.map((email) => (
@@ -207,7 +249,7 @@ export const EmailClient = () => {
                 avatarColor={email.avatarColor}
                 isUnread={email.isUnread}
                 onClick={() => handleEmailOpen(email)}
-                onDelete={moveEmailToTrash}
+                onDelete={(emailId) => void moveEmailToTrash(emailId)}
                 showDelete={selectedCategory !== "trash"}
                 isSelected={selectedEmailIds.includes(email.id)}
                 onToggleSelect={(emailId) =>

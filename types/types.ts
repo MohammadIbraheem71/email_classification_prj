@@ -15,6 +15,7 @@ export interface ScoredOpportunity extends Opportunity {
 
 export interface StudentProfile {
   degree: string;
+  semester: number;
   cgpa: number;
   skills: string[];
   preferred_types: string[];
