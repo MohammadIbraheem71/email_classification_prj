@@ -12,6 +12,8 @@ interface EmailRowProps {
   onClick: () => void;
   onDelete: (emailId: string) => void;
   showDelete: boolean;
+  isSelected: boolean;
+  onToggleSelect: (emailId: string) => void;
 }
 
 export const EmailRow = ({
@@ -26,12 +28,29 @@ export const EmailRow = ({
   onClick,
   onDelete,
   showDelete,
+  isSelected,
+  onToggleSelect,
 }: EmailRowProps) => {
   return (
     <div className="h-[66px] w-full cursor-pointer border-y border-[#323338] px-[17px] hover:bg-[#2b2c30]" onClick={onClick}>
       <div className="flex h-full items-center gap-[33px]">
         <div className="flex min-w-0 flex-1 items-center gap-[33px]">
           <div className="flex items-center gap-[5px]">
+            <button
+              aria-label="Select email"
+              className={`grid size-[18px] place-items-center rounded-[4px] border ${isSelected ? "border-[#777bfb] bg-[#777bfb]" : "border-[#4b5563] bg-transparent"}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleSelect(id);
+              }}
+              type="button"
+            >
+              {isSelected ? (
+                <svg className="size-[10px] text-white" fill="none" viewBox="0 0 10 10">
+                  <path d="M1.5 5.2L3.8 7.5L8.5 2.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+                </svg>
+              ) : null}
+            </button>
             <div className="grid size-[24px] place-items-center">
               {isUnread ? <div className="size-[5px] rounded-full bg-[#777bfb]" /> : null}
             </div>

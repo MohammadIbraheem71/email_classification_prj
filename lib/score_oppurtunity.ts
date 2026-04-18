@@ -6,7 +6,7 @@ import { Opportunity, StudentProfile } from "../types/types";
 // the scoring is pretty self explanatory
 export function scoreOpportunity(op: Opportunity, profile: StudentProfile) {
   let score = 0;
-  let reasons: string[] = [];
+  const reasons: string[] = [];
 
   // Type match
   if (

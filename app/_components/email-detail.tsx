@@ -1,14 +1,24 @@
 "use client";
 
 import type { Email } from "@/src/types/types";
+import type { EmailAnalysisState } from "@/src/types/types";
+import { AnalysisResultCard } from "@/app/_components/analysis-result-card";
 
 interface EmailDetailProps {
   email: Email;
   onBack: () => void;
   onDelete: () => void;
+  analysisState: EmailAnalysisState;
+  onRetryAnalysis: () => void;
 }
 
-export const EmailDetail = ({ email, onBack, onDelete }: EmailDetailProps) => {
+export const EmailDetail = ({
+  email,
+  onBack,
+  onDelete,
+  analysisState,
+  onRetryAnalysis,
+}: EmailDetailProps) => {
   return (
     <div className="absolute inset-x-0 bottom-0 top-[56px] z-40 overflow-auto bg-[#1b1c1d] p-[33px]">
       <div className="mx-auto max-w-[765px] rounded-[8px] bg-[#232427] p-8">
@@ -22,6 +32,13 @@ export const EmailDetail = ({ email, onBack, onDelete }: EmailDetailProps) => {
             </svg>
             Delete
           </button>
+        </div>
+        <div className="mb-6 rounded-[8px] border border-[#323338] bg-[#1f2022] p-4">
+          <p className="mb-3 text-sm text-[#989ca4]">AI Analysis</p>
+          <AnalysisResultCard
+            analysisState={analysisState}
+            onRetryAnalysis={onRetryAnalysis}
+          />
         </div>
         <div className="mb-6 flex items-center gap-3">
           <div className="grid size-8 place-items-center rounded-full text-xs text-[#d1d3d6]" style={{ backgroundColor: email.avatarColor }}>

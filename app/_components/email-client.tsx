@@ -7,11 +7,20 @@ import { Sidebar } from "@/app/_components/sidebar";
 import { EmailRow } from "@/app/_components/email-row";
 import { ComposeWindow } from "@/app/_components/compose-window";
 import { EmailDetail } from "@/app/_components/email-detail";
-import type { ComposeEmailInput, Email } from "@/src/types/types";
+import { BatchAnalysisModal } from "@/app/_components/batch-analysis-modal";
+import { UserProfilePage } from "@/app/_components/user-profile-page";
+import type {
+  BatchEmailAnalysisRequestItem,
+  ComposeEmailInput,
+  Email,
+  EmailAnalysisCache,
+  EmailAnalysisState,
+} from "@/src/types/types";
 
 const mailboxLabel: Record<string, string> = {
   inbox: "Inbox",
   trash: "Trash",
+  profile: "Profile",
 };
 
 export const EmailClient = () => {
@@ -20,6 +29,9 @@ export const EmailClient = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedEmailId, setSelectedEmailId] = useState<string | null>(null);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [selectedEmailIds, setSelectedEmailIds] = useState<string[]>([]);
+  const [isBatchAnalysisOpen, setIsBatchAnalysisOpen] = useState(false);
+  const [analysisCache, setAnalysisCache] = useState<EmailAnalysisCache>({});
 
   const filteredEmails = useMemo(
     () => emails.filter((email) => email.category === selectedCategory),
@@ -32,6 +44,27 @@ export const EmailClient = () => {
   const inboxCount = useMemo(
     () => emails.filter((email) => email.category === "inbox").length,
     [emails],
+  );
+  const selectedEmailAnalysis = useMemo<EmailAnalysisState>(() => {
+    if (!selectedEmailId) {
+      return { status: "idle", payload: null, error: null };
+    }
+
+    return (
+      analysisCache[selectedEmailId] ?? { status: "idle", payload: null, error: null }
+    );
+  }, [analysisCache, selectedEmailId]);
+  const selectedEmailsForBatch = useMemo<BatchEmailAnalysisRequestItem[]>(
+    () =>
+      emails
+        .filter((email) => selectedEmailIds.includes(email.id))
+        .map((email) => ({
+          id: email.id,
+          sender: email.sender,
+          subject: email.subject,
+          body: email.preview,
+        })),
+    [emails, selectedEmailIds],
   );
 
   const handleSend = (composeEmail: ComposeEmailInput) => {
@@ -62,15 +95,72 @@ export const EmailClient = () => {
     setSelectedEmailId(null);
   };
 
+  const analyzeEmail = async (email: Email, forceRetry = false) => {
+    const cachedState = analysisCache[email.id];
+    if (!forceRetry && cachedState?.status === "success") {
+      return;
+    }
+
+    setAnalysisCache((previousCache) => ({
+      ...previousCache,
+      [email.id]: { status: "loading", payload: null, error: null },
+    }));
+
+    try {
+      const response = await fetch("/api/email-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emailBody: email.preview }),
+      });
+      const data = (await response.json()) as { payload?: unknown; error?: string };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to analyze email.");
+      }
+
+      setAnalysisCache((previousCache) => ({
+        ...previousCache,
+        [email.id]: {
+          status: "success",
+          payload: data.payload ?? null,
+          error: null,
+        },
+      }));
+    } catch (error) {
+      setAnalysisCache((previousCache) => ({
+        ...previousCache,
+        [email.id]: {
+          status: "error",
+          payload: null,
+          error: error instanceof Error ? error.message : "Email analysis failed.",
+        },
+      }));
+    }
+  };
+
+  const handleEmailOpen = (email: Email) => {
+    setSelectedEmailId(email.id);
+    void analyzeEmail(email);
+  };
+
   return (
     <div className="relative h-screen overflow-hidden rounded-[22px] bg-[#1b1c1d]">
       {isComposeOpen ? <ComposeWindow onClose={() => setIsComposeOpen(false)} onSend={handleSend} /> : null}
-      {selectedEmail ? <EmailDetail email={selectedEmail} onBack={() => setSelectedEmailId(null)} onDelete={() => moveEmailToTrash(selectedEmail.id)} /> : null}
+      {selectedEmail ? (
+        <EmailDetail
+          email={selectedEmail}
+          onBack={() => setSelectedEmailId(null)}
+          onDelete={() => moveEmailToTrash(selectedEmail.id)}
+          analysisState={selectedEmailAnalysis}
+          onRetryAnalysis={() => void analyzeEmail(selectedEmail, true)}
+        />
+      ) : null}
       <Sidebar
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onCategorySelect={(category) => {
           setSelectedCategory(category);
+          setSelectedEmailIds([]);
           setIsSidebarOpen(false);
         }}
         selectedCategory={selectedCategory}
@@ -87,6 +177,11 @@ export const EmailClient = () => {
           {mailboxLabel[selectedCategory] ?? "Inbox"}
         </span>
         <div className="ml-auto flex items-center gap-2">
+          {selectedEmailIds.length > 0 ? (
+            <button className="rounded-[6px] border border-[#323338] px-3 py-2 text-[13px] text-[#d1d3d6] hover:bg-[#2b2c30]" onClick={() => setIsBatchAnalysisOpen(true)} type="button">
+              Analyze Selected ({selectedEmailIds.length})
+            </button>
+          ) : null}
           <button className="grid size-[32px] place-items-center rounded-[6px] hover:bg-[#2b2c30]" onClick={() => setIsComposeOpen(true)} type="button">
             <svg className="size-[11.125px]" viewBox="0 0 11.125 11.125">
               <path d={svgPaths.p8b667a0} stroke="#D1D3D6" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
@@ -96,24 +191,44 @@ export const EmailClient = () => {
       </header>
 
       <main className="hide-scrollbar absolute inset-x-0 bottom-0 top-[56px] overflow-auto p-[33px]">
-        {filteredEmails.map((email) => (
-          <EmailRow
-            key={email.id}
-            id={email.id}
-            sender={email.sender}
-            subject={email.subject}
-            preview={email.preview}
-            date={email.date}
-            initial={email.initial}
-            avatarColor={email.avatarColor}
-            isUnread={email.isUnread}
-            onClick={() => setSelectedEmailId(email.id)}
-            onDelete={moveEmailToTrash}
-            showDelete={selectedCategory !== "trash"}
-          />
-        ))}
-        <p className="pt-4 text-center text-[14px] text-[#989ca4]">That&apos;s all</p>
+        {selectedCategory === "profile" ? (
+          <UserProfilePage />
+        ) : (
+          <>
+            {filteredEmails.map((email) => (
+              <EmailRow
+                key={email.id}
+                id={email.id}
+                sender={email.sender}
+                subject={email.subject}
+                preview={email.preview}
+                date={email.date}
+                initial={email.initial}
+                avatarColor={email.avatarColor}
+                isUnread={email.isUnread}
+                onClick={() => handleEmailOpen(email)}
+                onDelete={moveEmailToTrash}
+                showDelete={selectedCategory !== "trash"}
+                isSelected={selectedEmailIds.includes(email.id)}
+                onToggleSelect={(emailId) =>
+                  setSelectedEmailIds((previousIds) =>
+                    previousIds.includes(emailId)
+                      ? previousIds.filter((id) => id !== emailId)
+                      : [...previousIds, emailId],
+                  )
+                }
+              />
+            ))}
+            <p className="pt-4 text-center text-[14px] text-[#989ca4]">That&apos;s all</p>
+          </>
+        )}
       </main>
+      {isBatchAnalysisOpen ? (
+        <BatchAnalysisModal
+          onClose={() => setIsBatchAnalysisOpen(false)}
+          selectedEmails={selectedEmailsForBatch}
+        />
+      ) : null}
     </div>
   );
 };
