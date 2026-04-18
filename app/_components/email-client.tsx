@@ -29,6 +29,10 @@ export const EmailClient = () => {
     () => emails.find((email) => email.id === selectedEmailId) ?? null,
     [emails, selectedEmailId],
   );
+  const inboxCount = useMemo(
+    () => emails.filter((email) => email.category === "inbox").length,
+    [emails],
+  );
 
   const handleSend = (composeEmail: ComposeEmailInput) => {
     const bulkBodies = composeEmail.bodies.length > 0 ? composeEmail.bodies : [""];
@@ -70,6 +74,7 @@ export const EmailClient = () => {
           setIsSidebarOpen(false);
         }}
         selectedCategory={selectedCategory}
+        inboxCount={inboxCount}
       />
 
       <header className="absolute inset-x-0 top-0 z-10 flex items-center gap-[22px] px-[22px] py-[12px]">

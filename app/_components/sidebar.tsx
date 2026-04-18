@@ -7,12 +7,23 @@ interface SidebarProps {
   onClose: () => void;
   onCategorySelect: (category: string) => void;
   selectedCategory: string;
+  inboxCount: number;
 }
 
-const categories = [{ id: "inbox", name: "Inbox", icon: "p18ed3c80", count: 0 }];
+const categories = [{ id: "inbox", name: "Inbox", icon: "p18ed3c80" }];
 const secondaryCategories = [{ id: "trash", name: "Trash", icon: "p35939aa0" }];
 
-export const Sidebar = ({ isOpen, onClose, onCategorySelect, selectedCategory }: SidebarProps) => {
+export const Sidebar = ({
+  isOpen,
+  onClose,
+  onCategorySelect,
+  selectedCategory,
+  inboxCount,
+}: SidebarProps) => {
+  const allCategories = [...categories, ...secondaryCategories].map((category) =>
+    category.id === "inbox" ? { ...category, count: inboxCount } : category,
+  );
+
   return (
     <aside className={`absolute inset-y-0 left-0 z-50 w-[299px] bg-[#232427] transition-transform ${isOpen ? "translate-x-0" : "-translate-x-full"}`}>
       <div className="flex items-center justify-between px-[22px] py-[12px]">
@@ -24,7 +35,7 @@ export const Sidebar = ({ isOpen, onClose, onCategorySelect, selectedCategory }:
         </button>
       </div>
       <div className="border-t border-[#323338] pt-2">
-        {[...categories, ...secondaryCategories].map((cat) => (
+        {allCategories.map((cat) => (
           <button
             className={`flex w-full items-center justify-between px-[22px] py-[10px] hover:bg-[#2b2c30] ${selectedCategory === cat.id ? "bg-[#2b2c30]" : ""}`}
             key={cat.id}
