@@ -12,5 +12,5 @@ export interface Email {
 
 export interface ComposeEmailInput {
   subject: string;
-  body: string;
+  bodies: string[];
 }

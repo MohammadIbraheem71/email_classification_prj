@@ -11,12 +11,24 @@ interface ComposeWindowProps {
 
 export const ComposeWindow = ({ onClose, onSend }: ComposeWindowProps) => {
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [bodies, setBodies] = useState([""]);
+
+  const updateBody = (value: string, index: number) => {
+    setBodies((previousBodies) =>
+      previousBodies.map((bodyValue, bodyIndex) =>
+        bodyIndex === index ? value : bodyValue,
+      ),
+    );
+  };
+
+  const addBodyField = () => {
+    setBodies((previousBodies) => [...previousBodies, ""]);
+  };
 
   const handleSend = () => {
     onSend({
       subject: subject.trim(),
-      body: body.trim(),
+      bodies: bodies.map((body) => body.trim()).filter(Boolean),
     });
   };
 
@@ -40,7 +52,22 @@ export const ComposeWindow = ({ onClose, onSend }: ComposeWindowProps) => {
       </div>
       <div className="mx-auto mt-8 max-w-[650px] space-y-4 px-6 pb-8 text-[14px] text-[#d1d3d6]">
         <input className="h-10 w-full rounded-[6px] bg-[#232427] px-3 outline-none" onChange={(event) => setSubject(event.target.value)} placeholder="Subject" value={subject} />
-        <textarea className="h-40 w-full rounded-[6px] bg-[#232427] p-3 outline-none" onChange={(event) => setBody(event.target.value)} placeholder="Body" value={body} />
+        {bodies.map((body, index) => (
+          <textarea
+            className="h-40 w-full rounded-[6px] bg-[#232427] p-3 outline-none"
+            key={`body-field-${index}`}
+            onChange={(event) => updateBody(event.target.value, index)}
+            placeholder={`Body ${index + 1}`}
+            value={body}
+          />
+        ))}
+        <button
+          className="flex h-10 w-full items-center justify-center rounded-[6px] bg-[#232427] text-[20px] text-[#d1d3d6] ring-1 ring-[#323338] hover:bg-[#2b2c30]"
+          onClick={addBodyField}
+          type="button"
+        >
+          +
+        </button>
       </div>
     </div>
   );

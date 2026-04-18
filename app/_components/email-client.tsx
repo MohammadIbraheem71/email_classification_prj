@@ -31,19 +31,20 @@ export const EmailClient = () => {
   );
 
   const handleSend = (composeEmail: ComposeEmailInput) => {
-    const newEmail: Email = {
-      id: String(Date.now()),
+    const bulkBodies = composeEmail.bodies.length > 0 ? composeEmail.bodies : [""];
+    const newEmails: Email[] = bulkBodies.map((body, index) => ({
+      id: `${Date.now()}-${index}`,
       sender: "You",
       subject: composeEmail.subject || "(No Subject)",
-      preview: composeEmail.body || "No body content",
+      preview: body || "No body content",
       date: "Just now",
       initial: "Y",
       avatarColor: "#777bfb",
       isUnread: false,
       category: "inbox",
-    };
+    }));
 
-    setEmails((previousEmails) => [newEmail, ...previousEmails]);
+    setEmails((previousEmails) => [...newEmails, ...previousEmails]);
     setSelectedCategory("inbox");
     setIsComposeOpen(false);
   };
